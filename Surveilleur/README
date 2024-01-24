@@ -1,0 +1,59 @@
+SERVER  MONITORING CLIENT:
+
+Cette app est la partie client du Projet Monitoring de serveur linux
+Il faut l'installer au niveau du serveur à surveiller
+le projet a pour objectif de surveiller l'utilisation des ressources systèmes linux: CPU,RAM, Disque Dure, et débit de la connexion internet.
+Il permet aussi de surveiller les commandes lancés par les utilisateurs du serveurs.
+Fonctionnement
+
+Participant:
+Kazuki, Djarina, Stéphanie, Mendrika, Rino
+
+Fonctionnement:
+Cette partie client, se connecte initialement avec un nom d'utilisateur et un mot de passe créer au niveau de l'API en utilisant le protocole OAuth2(pour empêcher n'importe quels serveurs de se connecté à l'api de monitoring et poster quelques choses)
+Il obtient un clé token, pour se connecter à un websocket du coté serveur.
+Une fois la connexion établie avec le websocket, il peut envoyer en boucle les informations sur le pourcentage de cpu utilisé, la ram disponible, la ram totale, le disque dure disponible, le disque dure totale, le dépit de téléversement (upload_rate) internet et le débit de téléchargement (download_rate)
+
+
+Installation:
+- Machine Virtuelle VMWare 16 pro
+- Système d'exploitation: Ubuntu 22.04.1 LTS
+- CPU Architecture: x86_64
+
+Pour installer cette partie cliente, il faut suivre les étapes suivantes:
+- Récupérer tous les fichiers nécéssaires et les regroupés dans le même dossier, ce sont:
+config.py, initv2.sh, send_cpu_ram_disk.py,send_history.py et send_network_rate.py,affiche_history_all.sh,requirements.txt
+
+- installer les dépendances nécessaires:
+pip install -r requirements.txt
+
+- configurer les variables suivantes dans config.py:
+client_id: nom d'utilisateur valide au niveau de l'api de monitoring
+password: mot de passe du compte utilisateur
+server_address: adresse IP du serveur de monitoring
+server_port:port_utilisé par le serveur
+
+- Donner  le droit d'exécution au script d'initialisation initv2.sh:
+chmod +x initv2.sh
+- Lancer le script d'initialisation:
+./initv2.sh
+
+Gestion des modules entant que services Linux:
+Tous les commandes systemctl sont utilisable sur les trois modules: send_cpu_ram_disk, send_network_rate et send_history
+Il faut pour cela enlever le .py:
+
+Exemple: pour send_network_rate.py
+systemctl status send_network_rate : vérrifie le status de send_network_rate, nécessaire au débogage par exemple
+systemctl restart send_network_rate : redémarre send_network_rate
+systemctl stop send_network_rate : arrête send_network_rate
+systemctl start send_network_rate : démarre send_network_rate
+
+Avantages :
+-Le post des données se fait depuis le serveur à surveiller, ce qui empêche dans la majorité des cas les problèmes liés au NAT ou au parefeu
+-Utilisation de websocket pour l'envoie des données assurant un meilleur fluidité de traffic
+- Les fonctionnalités sont isolés en modules distinctes: si l'un tombe en panne, les autres restent toujours fonctionnels, cela permet aussi d'envoyer les traffics en parallèle: 
+En effet, on a constaté que la calcule du débit internet via speedtest prend parfois environ 40 seconde, alors que la récupération des données de ressources: CPU,RAM,Disque se fait très rapidement, en séparant les modules, on peut facilement envoyé les données CPU_RAM_DISQUE plus fréquemment (environ 10 seconde actuellement) et le réseau à environ 40 seconde.
+- En utilisant directement OAuth2 dans la partie cliente au lieu d'utilisé un token  très long durée de vie, la partie cliente pourra demander directement au serveur un token d'accès au cas ou ce dernier change ou expire côté serveur, il suffit pour cela de relancer les services côté client
+
+Limites:
+- Pour le moment on considère que l'IP du serveur est l'élément d'identification d'un serveur, on considère que le serveur a une IP fixe donc l'IP du serveur est directement récupérer depuis le websocket de la partie API, le problème est que si nous avons des serveurs avec des IPs dynamiques (ce qui est rare quand même), il faut mettre en place un autre élément d'identification que l'adresse IP. Par exemple: nom de poste
